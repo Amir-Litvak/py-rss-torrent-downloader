@@ -1,0 +1,1 @@
+# Python script for checing for and downloading torrent downloads from tracker rss feeds using qBitorrent

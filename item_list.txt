@@ -1,0 +1,3 @@
+{"Item I Want To Download": "D:/USER/DOWNLOADS/MY_ITEM_FOLDER/SEASON 7/", 
+"A Different Item I want To Download that has no custom path": null, 
+"placeholder item" : "placeholder path"}
