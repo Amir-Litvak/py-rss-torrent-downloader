@@ -85,7 +85,10 @@ class RSSDownloader:
         self._lock = threading.Lock()
         self._thread = None
         self._run_flag = False
-        self._delete_obsolete()
+
+        if self._config.getboolean('SETTINGS', 'auto_delete_obsolete'):
+            self._delete_obsolete()
+        
 
         
     def run(self):
