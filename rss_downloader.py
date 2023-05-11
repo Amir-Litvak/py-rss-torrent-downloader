@@ -82,8 +82,8 @@ class RSSDownloader:
 
         self._config = configparser.ConfigParser()
         self._config.read(f'{self._curr_dir}/config.ini')
-        self._logger.info("Loaded config file")
         self._lock = threading.Lock()
+        self._thread = None
         self._run_flag = False
         self._delete_obsolete()
 
@@ -94,10 +94,9 @@ class RSSDownloader:
             return
         
         self._run_flag = True
-        thread = threading.Thread(target=self._run)
-        thread.start()
-        thread.join()
-        self._logger.info("Run loop Finished")
+        self._thread = threading.Thread(target=self._run)
+        self._thread.start()
+        
         
     def stop(self):
         if not self._run_flag:
@@ -105,6 +104,7 @@ class RSSDownloader:
             return
         
         self._run_flag = False
+        self._thread.join()
 
     def add_tracker(self, 
                 tracker_name = 'SOMETRACKER', 
@@ -116,14 +116,14 @@ class RSSDownloader:
                 must_contain = 'example, 1080p',
                 watch_list = {'placeholder_item' : 'placeholder_path'}):
         with self._lock:
-            self._config[tracker_name] = {'rss_link_magnet' : rss_link_magent,
+            self._config[tracker_name.upper()] = {'rss_link_magnet' : rss_link_magent,
                                          'rss_link_torr' : rss_link_torr,
                                     'download_dir' : download_dir,
                                     'download_method' : download_method,
                                     'has_dots' : has_dots,
                                     'must_contain' : must_contain}
             
-            self._config[f"{tracker_name}.WATCHLIST"] = watch_list
+            self._config[f"{tracker_name.upper()}.WATCHLIST"] = watch_list
             
             with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
                 self._config.write(configfile)
@@ -159,21 +159,18 @@ class RSSDownloader:
                                 dict(self._config.items(section=f"{tracker}.WATCHLIST"))))
                 
             return tracker_dets
-    
 
     def _run(self):
-        self._logger.info("Starting run loop")
         while self._run_flag:
             with self._lock:
                 sleep_time = self._config.getint('SETTINGS' ,'sleep_time')
                 tracker_list = list(filter(_only_trackers, self._config.sections()))
-            self._logger.info(f"Sleep time is {sleep_time}")
-            self._logger.info(f"tracker list is {tracker_list}")
             for tracker in tracker_list:
                 self._logger.info(f"Checking List for {tracker}")
                 self._download(tracker)
                 self._logger.info(f"going to sleep for {sleep_time} seconds")
             time.sleep(sleep_time)
+
             
     def _download(self, tracker):
         #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
