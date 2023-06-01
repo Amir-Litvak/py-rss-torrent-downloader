@@ -30,16 +30,6 @@ except ImportError:
     sys.exit()
 
 class RSSDownloader:
-    class Tracker:
-        def __init__(self, options, watchlist):
-            self._options = options
-            self._watchlist = watchlist
-            
-
-        class WatchlistItem:
-            def __init__(self):
-                pass
-
 
     def __init__(self):
         """
