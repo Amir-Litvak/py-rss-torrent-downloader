@@ -29,8 +29,18 @@ except ImportError:
     print("pip install python-telegram-bot --upgrade")
     sys.exit()
 
-
 class RSSDownloader:
+    class Tracker:
+        def __init__(self, options, watchlist):
+            self._options = options
+            self._watchlist = watchlist
+            
+
+        class WatchlistItem:
+            def __init__(self):
+                pass
+
+
     def __init__(self):
         """
         Create a new RSS downloader instance,
@@ -64,16 +74,8 @@ class RSSDownloader:
         self._logger = logging.getLogger()
         logging.basicConfig(filename=f'{self._curr_dir}/.logs/{datetime.date.today()}.log',
                         format='%(asctime)s %(levelname)s %(message)s', datefmt='%d/%m/%Y %H:%M:%S',
-                        level=logging.DEBUG)
-        """ self._logger.setLevel(logging.DEBUG)
+                        level=logging.INFO)
 
-        file_handler = logging.FileHandler(f"{self._curr_dir}/.logs/rss_downloader.log")
-        file_handler.setLevel(logging.DEBUG)
-
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-        file_handler.setFormatter(formatter)
-
-        self._logger.addHandler(file_handler) """
         
         """ if not os.path.isfile(f'{self._curr_dir}/config.ini'):
             self.__init_config_file()
@@ -85,10 +87,19 @@ class RSSDownloader:
         self._lock = threading.Lock()
         self._thread = None
         self._run_flag = False
+        self._delete_obsolete()
+        self._trackers = self._get_trackers()
+
+        if self._config.getboolean('SETTINGS', 'telegram_integration'):
+            try:
+                import telegram
+            except ImportError:
+                print("Module 'telegram' not installed. Please install it via:")
+                print("pip install python-telegram-bot --upgrade")
+                sys.exit()
 
         if self._config.getboolean('SETTINGS', 'auto_delete_obsolete'):
             self._delete_obsolete()
-        
 
         
     def run(self):
@@ -171,13 +182,17 @@ class RSSDownloader:
             for tracker in tracker_list:
                 self._logger.info(f"Checking List for {tracker}")
                 self._download(tracker)
-                self._logger.info(f"going to sleep for {sleep_time} seconds")
+            self._logger.info(f"going to sleep for {sleep_time} seconds")
             time.sleep(sleep_time)
 
-            
-    def _download(self, tracker):
-        #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
+    def _get_qualified_items(self, tracker):
+        qualified_item = {}
+        
         with self._lock:
+            rss_link = self._config.get(tracker, 'rss_link_magent')
+            feed = feedparser.parse(rss_link)
+
+            #returns a list of (name, value) tuples for each entry in WATCHLIST
             watch_list = self._config.items(section=f"{tracker}.WATCHLIST")
             for item, dir_path in watch_list:
                 if dir_path == '':
@@ -187,19 +202,66 @@ class RSSDownloader:
                 if self._config.getboolean(tracker, 'has_dots'):
                     item = item.replace(" ", ".")
 
+                for entry in feed['entries']:
+                    # if item is found in entry titles (lowercased), satisfies additional rules,
+                    # and does not exist already in directory.
+                    if item in entry.title.lower() and \
+                    self._check_rules(tracker, entry.title) and \
+                    not (os.path.isfile(dir_path + entry.title) or \
+                         os.path.isdir(dir_path + entry.title)):
+                        self._logger.info(f"Found new entry of {item.title()}")
+                        qualified_item[entry] = dir_path
 
-                rss_link = self._config.get(tracker, 'rss_link_magent') if \
+                        #Sends out a telegram message to group
+                        if self._config.getboolean('SETTINGS', 'telegram_integration'):
+                            asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
+                                                            chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
+                                                            token=self._config.get('SETTINGS', 'telegram_bot_token')))
+                        break
+        
+        return qualified_item
+    
+    def _qb_magnet_download(self, qualified_items):
+        qbit_user = self._config.get('SETTINGS', 'qbit_user')
+        qbit_password = self._config.get('SETTINGS', 'qbit_password')
+        qbit_path = self._config.get('SETTINGS', 'qbit_path')
+        os.startfile(qbit_path)
+        qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'port')}/")
+        if qb.login(qbit_user, qbit_password) != None:
+            print("Error: Wrong username/password")
+            self._logger.error("Entered wrong username/password")
+            sys.exit()
+        
+        for item, path in qualified_items.items():
+            qb.download_from_link(item.link, savepath=path)
+            self._logger.info(f"Added {item.title} to qBitorrent")
+            
+    def _download(self, tracker):
+        #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
+        with self._lock:
+            rss_link = self._config.get(tracker, 'rss_link_magent') if \
                             (self._config.get(tracker, 'download_method') == 'magnet') else \
                             self._config.get(tracker, 'rss_link_torr')
                 
-                feed = feedparser.parse(rss_link)
+            feed = feedparser.parse(rss_link)
+            
+            watch_list = self._config.items(section=f"{tracker}.WATCHLIST")
+            for item, dir_path in watch_list:
+                if dir_path == '':
+                    dir_path = f"{self._config.get(tracker, 'download_dir')}{item.title()}/"
+
+                # for trackers that name their torrents with dots intsead of spaces
+                if self._config.getboolean(tracker, 'has_dots'):
+                    item = item.replace(" ", ".")
+                
 
                 for entry in feed['entries']:
                     # if item is found in entry titles (lowercased), satisfies additional rules,
                     # and does not exist already in directory.
                     if item in entry.title.lower() and \
                     self._check_rules(tracker, entry.title) and \
-                    not os.path.isfile(dir_path + entry.title):
+                    not (os.path.isfile(dir_path + entry.title) or \
+                         os.path.isdir(dir_path + entry.title)):
                         self._logger.info(f"Found new entry of {item.title()}")
 
                         # magnet link OR .torrent download
@@ -213,7 +275,7 @@ class RSSDownloader:
 
                         #Sends out a telegram message to group
                         if self._config.getboolean('SETTINGS', 'telegram_integration'):
-                            asyncio.run(_telegram_notification(msg=f"{entry.title} has been added.", 
+                            asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
                                                             chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
                                                             token=self._config.get('SETTINGS', 'telegram_bot_token')))
                         break
@@ -222,6 +284,19 @@ class RSSDownloader:
         must_contain = self._config.get(tracker, 'must_contain')
         if must_contain != '':
             rules = must_contain.strip().split(",")
+            for rule in rules:
+                if rule not in title:
+                    return False
+
+        return True
+
+    def _check_rules(self, tracker, item, title):
+
+        must_contain = self._config.get(f"{tracker}.WATHCLIST", item)
+        if must_contain != '':
+            rules = must_contain.strip().split(",")
+            if os.path.isabs(rules[0]):
+                rules.pop(0)
             for rule in rules:
                 if rule not in title:
                     return False
@@ -306,14 +381,20 @@ class RSSDownloader:
                     dir_dict[item] = tracker_dir + item.replace(".", " ").title()
 
         return dir_dict
+    
+    def _get_trackers(self):
+        tracker_list = []
+        
+        for tracker_name in list(filter(_only_trackers, self._config.sections())):
+            tracker_list.append(self.Tracker(tracker_name, ))
+    
+    async def _telegram_notification(self, msg, token, chat_id):
+        bot = telegram.Bot(token)
+        async with bot:
+            await bot.send_message(text=msg, chat_id=chat_id)
 
 def _only_trackers(section):
     if (section == 'SETTINGS') or ('.' in section):
         return False
 
     return True
-
-async def _telegram_notification(msg, token, chat_id):
-    bot = telegram.Bot(token)
-    async with bot:
-        await bot.send_message(text=msg, chat_id=chat_id)
