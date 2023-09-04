@@ -4,7 +4,7 @@ import time
 def main():
     downloader = rss_downloader.RSSDownloader()
     downloader.run()
-    time.sleep(360)
+    time.sleep(10)
     downloader.stop()
 
 if __name__ == "__main__":

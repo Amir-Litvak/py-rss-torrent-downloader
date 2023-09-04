@@ -78,7 +78,7 @@ class RSSDownloader:
         self._thread = None
         self._run_flag = False
         self._delete_obsolete()
-        self._trackers = self._get_trackers()
+        #self._trackers = self._get_trackers()
 
         if self._config.getboolean('SETTINGS', 'telegram_integration'):
             try:
