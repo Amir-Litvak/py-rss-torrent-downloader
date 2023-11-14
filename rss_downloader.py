@@ -110,6 +110,21 @@ class RSSDownloader:
         self._run_flag = False
         self._thread.join()
 
+    def single_run(self):
+        if self._run_flag:
+            print("Downloader is alredy running.")
+            return
+
+        tracker_list = list()
+
+        with self._lock:
+            tracker_list = list(filter(_only_trackers, self._config.sections()))
+
+        for tracker in tracker_list:
+            self._logger.info(f"Checking List for {tracker}")
+            self._download(tracker)
+           
+
     def add_tracker(self, 
                 tracker_name = 'SOMETRACKER', 
                 rss_link_magent = 'https://trackerdomain.com/rss/?r=1080', 
