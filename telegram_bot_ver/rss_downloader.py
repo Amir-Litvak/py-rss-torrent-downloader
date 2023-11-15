@@ -19,7 +19,7 @@ try:
     from qbittorrent import Client #qbitorrent web-UI API
 except ImportError:
     print("Module 'qbittorrent' not installed. Please install it via:")
-    print("pip install qbittorrent")
+    print("pip install python-qbittorrent")
     sys.exit()
 
 try:
@@ -223,12 +223,12 @@ class RSSDownloader:
                         self._logger.info(f"Found new entry of {item.title()}")
                         qualified_item[entry] = dir_path
 
-                        #Sends out a telegram message to group
-                        if self._config.getboolean('SETTINGS', 'telegram_integration'):
+                        #Sends out a telegram message to group, not in telegram bot,
+                        """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
                             asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
                                                             chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
                                                             token=self._config.get('SETTINGS', 'telegram_bot_token')))
-                        break
+                        break """
         
         return qualified_item
     
@@ -295,19 +295,6 @@ class RSSDownloader:
         must_contain = self._config.get(tracker, 'must_contain')
         if must_contain != '':
             rules = must_contain.strip().split(",")
-            for rule in rules:
-                if rule not in title:
-                    return False
-
-        return True
-
-    def _check_rules(self, tracker, item, title):
-
-        must_contain = self._config.get(f"{tracker}.WATHCLIST", item)
-        if must_contain != '':
-            rules = must_contain.strip().split(",")
-            if os.path.isabs(rules[0]):
-                rules.pop(0)
             for rule in rules:
                 if rule not in title:
                     return False

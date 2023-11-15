@@ -24,8 +24,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a message with three inline buttons attached."""
     keyboard = [
         [
-            InlineKeyboardButton("Option 1", callback_data="1"),
-            InlineKeyboardButton("Option 2", callback_data="2"),
+            InlineKeyboardButton("start", callback_data="/start"),
+            InlineKeyboardButton("help", callback_data="/help"),
         ],
         [InlineKeyboardButton("Option 3", callback_data="3")],
     ]
@@ -42,7 +42,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # CallbackQueries need to be answered, even if no notification to the user is needed
     # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     await query.answer()
-
+    
     await query.edit_message_text(text=f"Selected option: {query.data}")
 
 
@@ -50,10 +50,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """Displays info on how to use the bot."""
     await update.message.reply_text("Use /start to test this bot.")
 
+async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await rss_downloader.RSSDownloader().single_run()
+
+
 
 def main():
-    downloader = rss_downloader.RSSDownloader()
-    TOKEN = downloader.get_telegram_token()
+    TOKEN = rss_downloader.RSSDownloader().get_telegram_token()
 
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TOKEN).build()
@@ -61,6 +64,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("download", download_command))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
