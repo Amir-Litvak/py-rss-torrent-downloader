@@ -178,6 +178,12 @@ class RSSDownloader:
                                 dict(self._config.items(section=f"{tracker}.WATCHLIST"))))
                 
             return tracker_dets
+        
+    def get_telegram_token(self):
+        with self._lock:
+            token = self._config.get('SETTINGS', 'telegram_bot_token')
+        
+        return token
 
     def _run(self):
         while self._run_flag:
