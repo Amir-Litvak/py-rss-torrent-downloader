@@ -24,8 +24,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a message with three inline buttons attached."""
     keyboard = [
         [
-            InlineKeyboardButton("Option 1", callback_data="1"),
-            InlineKeyboardButton("Option 2", callback_data="2"),
+            InlineKeyboardButton("start", callback_data="/start"),
+            InlineKeyboardButton("help", callback_data="/help"),
         ],
         [InlineKeyboardButton("Option 3", callback_data="3")],
     ]
@@ -42,7 +42,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # CallbackQueries need to be answered, even if no notification to the user is needed
     # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     await query.answer()
-
+    
     await query.edit_message_text(text=f"Selected option: {query.data}")
 
 
