@@ -78,6 +78,7 @@ class RSSDownloader:
         self._thread = None
         self._run_flag = False
         self._delete_obsolete()
+        self._downloaded_items = list()
         #self._trackers = self._get_trackers()
 
         if self._config.getboolean('SETTINGS', 'telegram_integration'):
@@ -124,6 +125,8 @@ class RSSDownloader:
             self._logger.info(f"Checking List for {tracker}")
             self._download(tracker)
            
+    def get_downloaded_items(self):
+        return self._downloaded_items
 
     def add_tracker(self, 
                 tracker_name = 'SOMETRACKER', 
@@ -223,6 +226,8 @@ class RSSDownloader:
                         self._logger.info(f"Found new entry of {item.title()}")
                         qualified_item[entry] = dir_path
 
+                        self._downloaded_items.append(entry.title)
+
                         #Sends out a telegram message to group, not in telegram bot,
                         """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
                             asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
@@ -284,12 +289,14 @@ class RSSDownloader:
                             self._dot_torr_download(entry.link, entry.title)
                             self._logger.info(f"Downloaded {entry.title} torrent file to folder")
 
+                        
+
                         #Sends out a telegram message to group
-                        if self._config.getboolean('SETTINGS', 'telegram_integration'):
+                        """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
                             asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
                                                             chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
                                                             token=self._config.get('SETTINGS', 'telegram_bot_token')))
-                        break
+                        break """
         
     def _check_rules(self, tracker, title):
         must_contain = self._config.get(tracker, 'must_contain')

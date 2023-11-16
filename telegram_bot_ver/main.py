@@ -51,7 +51,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Use /start to test this bot.")
 
 async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await rss_downloader.RSSDownloader().single_run()
+    downloader = rss_downloader.RSSDownloader()
+    downloader.single_run()
+
+    #print(f"Unpacked list: {*a,}")
+    await update.message.reply_text(f"{*downloader.get_downloaded_items(),} Added to qBittorrent")
+
+
 
 
 
