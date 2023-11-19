@@ -32,7 +32,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Please choose:", reply_markup=reply_markup)
+    #await update.message.reply_text("Please choose:", reply_markup=reply_markup)
+    await update.message.reply_text("""Please choose one of the following commands:
+                                    /start
+                                    /help
+                                    /download
+                                    /add_item some text""")
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -55,10 +60,14 @@ async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     downloader.single_run()
 
     #print(f"Unpacked list: {*a,}")
-    await update.message.reply_text(f"{*downloader.get_downloaded_items(),} Added to qBittorrent")
+    await update.message.reply_text(f"{downloader.get_downloaded_items()} Added to qBittorrent")
 
-
-
+async def add_item_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    downloader = rss_downloader.RSSDownloader()
+    if not context.args:
+        await update.message.reply_text("Please provide an item name after /add_item")
+    else:
+        downloader.add_item_to_watchlist(tracker='SUBSPLEASE', item=' '.join(context.args))
 
 
 def main():
@@ -71,6 +80,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("download", download_command))
+    application.add_handler(CommandHandler("add_item",add_item_command))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)

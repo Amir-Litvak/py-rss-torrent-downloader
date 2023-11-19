@@ -77,9 +77,7 @@ class RSSDownloader:
         self._lock = threading.Lock()
         self._thread = None
         self._run_flag = False
-        self._delete_obsolete()
         self._downloaded_items = list()
-        #self._trackers = self._get_trackers()
 
         if self._config.getboolean('SETTINGS', 'telegram_integration'):
             try:
@@ -88,9 +86,6 @@ class RSSDownloader:
                 print("Module 'telegram' not installed. Please install it via:")
                 print("pip install python-telegram-bot --upgrade")
                 sys.exit()
-
-        if self._config.getboolean('SETTINGS', 'auto_delete_obsolete'):
-            self._delete_obsolete()
 
         
     def run(self):
@@ -174,13 +169,6 @@ class RSSDownloader:
             settings_dict = dict(self._config.items(section='SETTINGS'))
 
             return settings_dict
-    
-    def get_tracker_details(self, tracker):
-        with self._lock:
-            tracker_dets = tuple((dict(self._config.items(section=tracker)),
-                                dict(self._config.items(section=f"{tracker}.WATCHLIST"))))
-                
-            return tracker_dets
         
     def get_telegram_token(self):
         with self._lock:
@@ -198,59 +186,6 @@ class RSSDownloader:
                 self._download(tracker)
             self._logger.info(f"going to sleep for {sleep_time} seconds")
             time.sleep(sleep_time)
-
-    def _get_qualified_items(self, tracker):
-        qualified_item = {}
-        
-        with self._lock:
-            rss_link = self._config.get(tracker, 'rss_link_magent')
-            feed = feedparser.parse(rss_link)
-
-            #returns a list of (name, value) tuples for each entry in WATCHLIST
-            watch_list = self._config.items(section=f"{tracker}.WATCHLIST")
-            for item, dir_path in watch_list:
-                if dir_path == '':
-                    dir_path = f"{self._config.get(tracker, 'download_dir')}{item.title()}/"
-
-                # for trackers that name their torrents with dots intsead of spaces
-                if self._config.getboolean(tracker, 'has_dots'):
-                    item = item.replace(" ", ".")
-
-                for entry in feed['entries']:
-                    # if item is found in entry titles (lowercased), satisfies additional rules,
-                    # and does not exist already in directory.
-                    if item in entry.title.lower() and \
-                    self._check_rules(tracker, entry.title) and \
-                    not (os.path.isfile(dir_path + entry.title) or \
-                         os.path.isdir(dir_path + entry.title)):
-                        self._logger.info(f"Found new entry of {item.title()}")
-                        qualified_item[entry] = dir_path
-
-                        self._downloaded_items.append(entry.title)
-
-                        #Sends out a telegram message to group, not in telegram bot,
-                        """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
-                            asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
-                                                            chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
-                                                            token=self._config.get('SETTINGS', 'telegram_bot_token')))
-                        break """
-        
-        return qualified_item
-    
-    def _qb_magnet_download(self, qualified_items):
-        qbit_user = self._config.get('SETTINGS', 'qbit_user')
-        qbit_password = self._config.get('SETTINGS', 'qbit_password')
-        qbit_path = self._config.get('SETTINGS', 'qbit_path')
-        os.startfile(qbit_path)
-        qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'port')}/")
-        if qb.login(qbit_user, qbit_password) != None:
-            print("Error: Wrong username/password")
-            self._logger.error("Entered wrong username/password")
-            sys.exit()
-        
-        for item, path in qualified_items.items():
-            qb.download_from_link(item.link, savepath=path)
-            self._logger.info(f"Added {item.title} to qBitorrent")
             
     def _download(self, tracker):
         #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
@@ -289,7 +224,7 @@ class RSSDownloader:
                             self._dot_torr_download(entry.link, entry.title)
                             self._logger.info(f"Downloaded {entry.title} torrent file to folder")
 
-                        
+                        self._downloaded_items.append(entry.title)
 
                         #Sends out a telegram message to group
                         """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
@@ -307,24 +242,6 @@ class RSSDownloader:
                     return False
 
         return True
-    
-    def _init_config_file(self):
-        """Create a new config file"""
-        config = configparser.ConfigParser()
-
-        config['SETTINGS'] = {'qbit_path': 'C:/Program Files/qBittorrent/qbittorrent.exe', 
-                            'qbit_user': 'your_username',
-                            'qbit_password': 'your_password',
-                            'port': '8081',
-                            'sleep_time': '300',
-                            'qbit_integration' : 'yes/no'
-                            }
-        
-        self.add_tracker()
-
-        with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
-            config.write(configfile)
-
 
     def _qb_web(self, dir_path,link):
         qbit_user = self._config.get('SETTINGS', 'qbit_user')
@@ -339,59 +256,6 @@ class RSSDownloader:
         
         qb.download_from_link(link, savepath=(dir_path))    
 
-    def _dot_torr_download(self, link, title):
-        
-        torr_download = requests.get(url=link, allow_redirects=True)
-
-        with open(f"{self._curr_dir}/Downloads/{title}.torrent", 'wb+') as torr_file:
-            torr_file.write(torr_download.content)
-
-    def _delete_obsolete(self):
-        self._delete_old_logs()
-        self._delete_old_torrent_files()
-
-    def _delete_old_logs(self):
-        cutoff_date = datetime.date.today() - datetime.timedelta(days=7)
-        for filename in os.listdir(f"{self._curr_dir}/.logs"):
-            file_path = os.path.join(f"{self._curr_dir}/.logs", filename)
-            if os.path.isfile(file_path):
-                file_date = datetime.datetime.strptime(os.path.splitext(filename)[0], '%Y-%m-%d').date()
-                if file_date < cutoff_date and filename.endswith('.log'):
-                    os.remove(file_path)
-        
-        pass
-
-    def _delete_old_torrent_files(self):
-        if os.listdir(f"{self._curr_dir}/Downloads"):
-            dir_dict = self._get_downlad_dir_dict()
-            #check in every save directory for existance of the downloaded file from torrent
-            for torrent_file in os.listdir(f"{self._curr_dir}/Downloads"):
-                for item, dir in dir_dict:
-                    if item in torrent_file and os.path.isfile(f"{dir}/{torrent_file.removesuffix('.torrent')}"):
-                        os.remove(f"{self._curr_dir}/Downloads/{torrent_file}")
-        
-
-    def _get_downlad_dir_dict(self):
-        dir_dict = {}
-    
-        for tracker in list(filter(_only_trackers, self._config.sections())):
-            tracker_has_dots = self._config.getboolean(tracker, 'has_dots')
-            tracker_dir = self._config.get(tracker, 'download_dir')
-            for item, dir in self._config.items(section=f"{tracker}.WATCHLIST"):
-                if tracker_has_dots:
-                    item = item.replace(" ", ".")
-                if dir:
-                    dir_dict[item] = dir
-                else:
-                    dir_dict[item] = tracker_dir + item.replace(".", " ").title()
-
-        return dir_dict
-    
-    def _get_trackers(self):
-        tracker_list = []
-        
-        for tracker_name in list(filter(_only_trackers, self._config.sections())):
-            tracker_list.append(self.Tracker(tracker_name, ))
     
     async def _telegram_notification(self, msg, token, chat_id):
         bot = telegram.Bot(token)
