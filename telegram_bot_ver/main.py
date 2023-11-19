@@ -1,5 +1,5 @@
 import logging
-
+import sys
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                     /start
                                     /help
                                     /download
-                                    /add_item some text""")
+                                    /additem some text/""")
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -58,16 +58,21 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     downloader = rss_downloader.RSSDownloader()
     downloader.single_run()
-
+    downloaded_item_list = downloader.get_downloaded_items()
     #print(f"Unpacked list: {*a,}")
-    await update.message.reply_text(f"{downloader.get_downloaded_items()} Added to qBittorrent")
+    if not downloaded_item_list:
+        downloaded_item_list = "No items"
+    await update.message.reply_text(f"{downloaded_item_list} Added to qBittorrent")
 
 async def add_item_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     downloader = rss_downloader.RSSDownloader()
     if not context.args:
-        await update.message.reply_text("Please provide an item name after /add_item")
+        await update.message.reply_text("Please provide an item name after /additem")
     else:
-        downloader.add_item_to_watchlist(tracker='SUBSPLEASE', item=' '.join(context.args))
+        downloader.add_item_to_watchlist(item=' '.join(context.args))
+
+async def exit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    sys.exit()
 
 
 def main():
@@ -80,7 +85,8 @@ def main():
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("download", download_command))
-    application.add_handler(CommandHandler("add_item",add_item_command))
+    application.add_handler(CommandHandler("additem",add_item_command))
+    application.add_handler(CommandHandler("exit", exit_command))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
