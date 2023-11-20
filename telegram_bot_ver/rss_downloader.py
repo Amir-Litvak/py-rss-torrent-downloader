@@ -4,8 +4,6 @@ import sys #exit
 import configparser #configparser
 import logging
 import threading
-import asyncio
-import requests
 import datetime
 
 try:
@@ -22,42 +20,9 @@ except ImportError:
     print("pip install python-qbittorrent")
     sys.exit()
 
-try:
-    import telegram
-except ImportError:
-    print("Module 'telegram' not installed. Please install it via:")
-    print("pip install python-telegram-bot --upgrade")
-    sys.exit()
-
 class RSSDownloader:
 
     def __init__(self):
-        """
-        Create a new RSS downloader instance,
-        and read the config.ini file.
-
-        if config.ini does not exist,
-        a new config.ini will be created and would need
-        changing to fit the user.
-
-        Methods
-        -------
-        run()
-            Starts a new downloading loop to constantly check for new items to download from different trackers,
-            constant intervals.
-
-        stop()
-            Stops the downloading loop.
-
-        add_tracker(tracker_name, rss_link, download_dir, has_dots, must_contain, watch_list)
-            adds a new tracker to download from.
-
-        add_item_to_watchlist(tracker, item, path)
-            adds a new item to track from a specific tracker
-
-        change_setting(setting, att)
-            changes one of the settings
-        """
         self._curr_dir = os.path.dirname(os.path.abspath(__file__))
         os.makedirs(f"{self._curr_dir}/.logs", exist_ok=True)
         os.makedirs(f"{self._curr_dir}/Downloads", exist_ok=True)
@@ -66,11 +31,8 @@ class RSSDownloader:
                         format='%(asctime)s %(levelname)s %(message)s', datefmt='%d/%m/%Y %H:%M:%S',
                         level=logging.INFO)
 
-        
-        """ if not os.path.isfile(f'{self._curr_dir}/config.ini'):
+        if not os.path.isfile(f'{self._curr_dir}/config.ini'):
             self.__init_config_file()
-            print("a config.ini file has been created, please go over it and change the settings")
-            sys.exit() """
 
         self._config = configparser.ConfigParser()
         self._config.read(f'{self._curr_dir}/config.ini')
@@ -78,14 +40,6 @@ class RSSDownloader:
         self._thread = None
         self._run_flag = False
         self._downloaded_items = list()
-
-        if self._config.getboolean('SETTINGS', 'telegram_integration'):
-            try:
-                import telegram
-            except ImportError:
-                print("Module 'telegram' not installed. Please install it via:")
-                print("pip install python-telegram-bot --upgrade")
-                sys.exit()
 
         
     def run(self):
@@ -145,6 +99,28 @@ class RSSDownloader:
             token = self._config.get('SETTINGS', 'telegram_bot_token')
         
         return token
+    
+    def _init_config_file(self):
+        """Create a new config file"""
+        config = configparser.ConfigParser()
+
+        config['SETTINGS'] = {'qbit_path': 'C:/Program Files/qBittorrent/qbittorrent.exe', 
+                            'qbit_user': 'your_username',
+                            'qbit_password': 'your_password',
+                            'port': '8081',
+                            'sleep_time': '300',
+                            'qbit_integration' : 'yes/no',
+                            'telegram_bot_token' : 'TOKEN',
+                            'download_dir' : 'C:/Users/USERNAME/Downloads/',
+                            'has_dots' : 'no',
+                            'must_contain' : ''
+                            }
+        
+        config['WATHLIST'] = {'an item to download' : 'C:/Users/USERNAME/Downloads/item/download/path/'}
+
+        with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
+            config.write(configfile)
+
 
     def _run(self):
         while self._run_flag:
@@ -172,7 +148,6 @@ class RSSDownloader:
                 # for trackers that name their torrents with dots intsead of spaces
                 if self._config.getboolean('SETTINGS', 'has_dots'):
                     item = item.replace(" ", ".")
-                
 
                 for entry in feed['entries']:
                     # if item is found in entry titles (lowercased), satisfies additional rules,
@@ -194,12 +169,6 @@ class RSSDownloader:
 
                         self._downloaded_items.append(entry.title)
 
-                        #Sends out a telegram message to group
-                        """ if self._config.getboolean('SETTINGS', 'telegram_integration'):
-                            asyncio.run(self._telegram_notification(msg=f"{entry.title} has been added.", 
-                                                            chat_id=self._config.get('SETTINGS', 'telegram_group_chat_id'),
-                                                            token=self._config.get('SETTINGS', 'telegram_bot_token')))
-                        break """
         
     def _check_rules(self, tracker, title):
         must_contain = self._config.get(tracker, 'must_contain')
@@ -218,8 +187,8 @@ class RSSDownloader:
         os.startfile(qbit_path)
         qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'port')}/")
         if qb.login(qbit_user, qbit_password) != None:
-            print("Error: Wrong username/password")
-            self._logger.error("Entered wrong username/password")
+            print("Error: Wrong qbittorrent username/password")
+            self._logger.error("Entered wrong qbittorrent username/password")
             sys.exit()
         
         qb.download_from_link(link, savepath=(dir_path))    
