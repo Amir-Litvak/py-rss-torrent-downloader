@@ -70,7 +70,6 @@ class RSSDownloader:
     def get_downloaded_items(self):
         return self._downloaded_items
 
-    
     def add_item_to_watchlist(self, item, path = ''):
         with self._lock:
             self._config["WATCHLIST"][item] = path
@@ -93,6 +92,26 @@ class RSSDownloader:
             settings_dict = dict(self._config.items(section='SETTINGS'))
 
             return settings_dict
+        
+    def get_watchlist(self):
+        with self._lock:
+            watchlist = list(dict(self._config.items(section='WATCHLIST')).keys())
+
+        return watchlist
+
+    def remove_item_from_watchlist(self, item):
+        with self._lock:
+            if item not in dict(self._config.items(section='WATCHLIST')):
+                print(f"{item} not in wathclist")
+                return False
+            
+            self._config["WATCHLIST"].pop(item)
+            with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
+                self._config.write(configfile)
+            self._logger.info((f"Removed {item} from watchlist"))
+            
+            return True
+        
         
     def get_telegram_token(self):
         with self._lock:
