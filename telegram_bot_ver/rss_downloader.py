@@ -2,9 +2,9 @@ import os #dir path, startfile
 import time #sleep
 import sys #exit
 import configparser #configparser
-import logging
-import threading
-import datetime
+import logging #logging
+import threading #thread
+import datetime #for the logs
 
 try:
     import feedparser #feedparser
@@ -23,6 +23,48 @@ except ImportError:
 class RSSDownloader:
 
     def __init__(self):
+        """
+        Create a new RSS downloader instance,
+        and read the config.ini file.
+
+        if config.ini does not exist,
+        a new config.ini will be created and would need
+        changing to fit the user.
+
+        Methods
+        -------
+        run()
+            Starts a new downloading loop to constantly check for new items to download from tracker,
+            constant intervals.
+
+        stop()
+            Stops the downloading loop.
+
+        single_run()
+            Runs a downloading cycle exactly once, adding to downloaded items list
+
+        get_downloaded_items()
+            Get the downloaded items list
+
+        add_item_to_watchlist(item, path)
+            adds a new item and (optionally) its path to the watchlist
+
+        remove_item_from_watchlist(item)
+            Removes an item from the watchlist
+
+        change_setting(setting, att)
+            changes one of the settings
+
+        get_watchlist()
+            Get the current watchlist
+        
+        get_settings()
+            Get a dictionary of the settings and their attributes as pairs  
+        
+        get_telegram_token()
+            a Telegram specific method to get the bot token
+
+        """
         self._curr_dir = os.path.dirname(os.path.abspath(__file__))
         os.makedirs(f"{self._curr_dir}/.logs", exist_ok=True)
         os.makedirs(f"{self._curr_dir}/Downloads", exist_ok=True)
@@ -43,6 +85,7 @@ class RSSDownloader:
 
         
     def run(self):
+        """ Starts a new downloading loop in a different thread """
         if self._run_flag:
             print("Downloader is alredy running.")
             return
@@ -53,6 +96,7 @@ class RSSDownloader:
         
         
     def stop(self):
+        """ Stops the downloading loop and closes the thread """
         if not self._run_flag:
             print("Downloader is not running.")
             return
@@ -61,16 +105,19 @@ class RSSDownloader:
         self._thread.join()
 
     def single_run(self):
+        """ Run a single 'check and download' cycle """
         if self._run_flag:
             print("Downloader is alredy running.")
             return
         
         self._download()
            
-    def get_downloaded_items(self):
+    def get_downloaded_items(self) -> list:
+        """ Get a list of the downloaded items """
         return self._downloaded_items
 
-    def add_item_to_watchlist(self, item, path = ''):
+    def add_item_to_watchlist(self, item: str, path: str = '') -> None:
+        """ Adds an item to the watchlist along with an optional path """
         with self._lock:
             self._config["WATCHLIST"][item] = path
 
@@ -79,7 +126,8 @@ class RSSDownloader:
 
             self._logger.info(f"Added {item} to watchlist")
 
-    def change_setting(self, setting, att):
+    def change_setting(self, setting: str, att: str):
+        """ Changes attribute at setting """
         with self._lock:
             old_attribute = self._config.get('SETTINGS', setting)
             self._config['SETTINGS'][setting] = att
@@ -87,19 +135,23 @@ class RSSDownloader:
                 self._config.write(configfile)
             self._logger.info((f"Changed {setting} from {old_attribute} to {att}"))
 
-    def get_settings(self):
+    def get_settings(self) -> dict:
+        """ Get all the current settings and their attributes as a dictionary """
         with self._lock:
             settings_dict = dict(self._config.items(section='SETTINGS'))
 
             return settings_dict
         
-    def get_watchlist(self):
+    def get_watchlist(self) -> list:
+        """ Get the current watchlist """
         with self._lock:
             watchlist = list(dict(self._config.items(section='WATCHLIST')).keys())
 
         return watchlist
 
-    def remove_item_from_watchlist(self, item):
+    def remove_item_from_watchlist(self, item: str) -> bool:
+        """ Removes an item from the watchlist, 
+        returns False if item is not found in the list, and True if found. """
         with self._lock:
             if item not in dict(self._config.items(section='WATCHLIST')):
                 print(f"{item} not in wathclist")
@@ -113,7 +165,8 @@ class RSSDownloader:
             return True
         
         
-    def get_telegram_token(self):
+    def get_telegram_token(self)-> str:
+        """ Get the telegram bot token """
         with self._lock:
             token = self._config.get('SETTINGS', 'telegram_bot_token')
         
