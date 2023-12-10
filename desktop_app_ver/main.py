@@ -118,7 +118,7 @@ class RSSDownloaderGUI:
             if not setting == 'qbit_integration' and 'qbit' in setting.lower() and settings['qbit_integration'] == 'no':
                 continue
 
-            ttk.Label(settings_frame, text=f"{setting}:").grid(row=i, column=0, pady=5)
+            ttk.Label(settings_frame, text=f"{setting.replace('_', ' ').title()}:").grid(row=i, column=0, pady=5)
 
             # Check if the value is either 'yes' or 'no'
             if value.lower() in ['yes', 'no']:
