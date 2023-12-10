@@ -15,10 +15,11 @@ class Application:
         self._mainframe = tk.Frame(self._root, background='grey')
         self._mainframe.pack(fill='both', expand=True)
 
-        download_button = ttk.Button(self._mainframe, text='Download', command=self._download)
+        download_button = ttk.Button(self._mainframe, text='Download', command=self._download_items)
         download_button.grid(row=0, column=0, pady=10, padx=10)
 
         self._root.mainloop()
     
-    def _download(self):
-        rss_downloader.RSSDownloader().single_run()
+    def _download_items(self):
+        rss_downloader.RSSDownloader().download()
+    

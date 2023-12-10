@@ -4,6 +4,7 @@ import datetime
 import sys
 from telegram import Update
 from telegram.ext import filters, Application, CommandHandler, ContextTypes, MessageHandler
+import asyncio
 
 import rss_downloader
 
@@ -40,13 +41,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Use /start to see all commands this bot can execute.")
 
 async def download_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    downloader = rss_downloader.RSSDownloader()
-    downloader.single_run()
-    downloaded_item_list = downloader.get_downloaded_items()
-
-    if not downloaded_item_list:
-        output = "No items"
-    else:
+    downloaded_item_list = rss_downloader.RSSDownloader().download()
+    output = "No items"
+    
+    if downloaded_item_list:
         output = '\n'.join(downloaded_item_list)
 
     await update.message.reply_text(f"{output} Added to qBittorrent")
@@ -78,7 +76,7 @@ async def exit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def general_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("I am a bot. Bip boop.")
 
-def main():
+async def main():
     TOKEN = rss_downloader.RSSDownloader().get_telegram_token()
     application = Application.builder().token(TOKEN).build()
     
@@ -94,4 +92,4 @@ def main():
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    main()
+   asyncio.run(main())

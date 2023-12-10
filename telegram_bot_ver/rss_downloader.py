@@ -1,5 +1,4 @@
 import os #dir path, startfile
-import time #sleep
 import sys #exit
 import configparser #configparser
 import logging #logging
@@ -33,18 +32,9 @@ class RSSDownloader:
 
         Methods
         -------
-        run()
-            Starts a new downloading loop to constantly check for new items to download from tracker,
-            constant intervals.
-
-        stop()
-            Stops the downloading loop.
-
-        single_run()
-            Runs a downloading cycle exactly once, adding to downloaded items list
-
-        get_downloaded_items()
-            Get the downloaded items list
+        download()
+            Runs a downloading cycle exactly once,
+            return a list of downloaded items
 
         add_item_to_watchlist(item, path)
             adds a new item and (optionally) its path to the watchlist
@@ -79,42 +69,48 @@ class RSSDownloader:
         self._config = configparser.ConfigParser()
         self._config.read(f'{self._curr_dir}/config.ini')
         self._lock = threading.Lock()
-        self._thread = None
-        self._run_flag = False
-        self._downloaded_items = list()
+    
+    def download(self):
+        downloaded_items = list()
+        
+        #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
+        with self._lock:
+            rss_link = self._config.get('SETTINGS', 'rss_link_magent') if \
+                            (self._config.get('SETTINGS', 'download_method') == 'magnet') else \
+                            self._config.get('SETTINGS', 'rss_link_torr')
+                
+            feed = feedparser.parse(rss_link)
+            
+            watch_list = self._config.items(section="WATCHLIST")
+            for item, dir_path in watch_list:
+                if dir_path == '':
+                    dir_path = f"{self._config.get('SETTINGS', 'download_dir')}{item.title()}/"
 
-        
-    def run(self):
-        """ Starts a new downloading loop in a different thread """
-        if self._run_flag:
-            print("Downloader is alredy running.")
-            return
-        
-        self._run_flag = True
-        self._thread = threading.Thread(target=self._run)
-        self._thread.start()
-        
-        
-    def stop(self):
-        """ Stops the downloading loop and closes the thread """
-        if not self._run_flag:
-            print("Downloader is not running.")
-            return
-        
-        self._run_flag = False
-        self._thread.join()
+                # for trackers that name their torrents with dots intsead of spaces
+                if self._config.getboolean('SETTINGS', 'has_dots'):
+                    item = item.replace(" ", ".")
 
-    def single_run(self):
-        """ Run a single 'check and download' cycle """
-        if self._run_flag:
-            print("Downloader is alredy running.")
-            return
+                for entry in feed['entries']:
+                    # if item is found in entry titles (lowercased), satisfies additional rules,
+                    # and does not exist already in directory.
+                    if item in entry.title.lower() and \
+                    self._check_rules('SETTINGS', entry.title) and \
+                    not (os.path.isfile(dir_path + entry.title) or \
+                         os.path.isdir(dir_path + entry.title)):
+                        self._logger.info(f"Found new entry of {item.title()}")
+
+                        # magnet link OR .torrent download
+                        if self._config.getboolean('SETTINGS', 'qbit_integration') and \
+                        self._config.get('SETTINGS', 'download_method') == 'magnet':   
+                            self._qb_web(dir_path, entry.link)
+                            self._logger.info(f"Added {entry.title} to qBitorrent")
+                        elif not os.path.isfile(f"{self._curr_dir}/Downloads/{entry.title}"):
+                            self._dot_torr_download(entry.link, entry.title)
+                            self._logger.info(f"Downloaded {entry.title} torrent file to folder")
+
+                        downloaded_items.append(entry.title)
         
-        self._download()
-           
-    def get_downloaded_items(self) -> list:
-        """ Get a list of the downloaded items """
-        return self._downloaded_items
+        return downloaded_items
 
     def add_item_to_watchlist(self, item: str, path: str = '') -> None:
         """ Adds an item to the watchlist along with an optional path """
@@ -194,52 +190,8 @@ class RSSDownloader:
             config.write(configfile)
 
 
-    def _run(self):
-        while self._run_flag:
-            with self._lock:
-                sleep_time = self._config.getint('SETTINGS' ,'sleep_time')
-                self._logger.info("Checking LisT")
-                self._download()
-            self._logger.info(f"going to sleep for {sleep_time} seconds")
-            time.sleep(sleep_time)
             
-    def _download(self):
-        #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
-        with self._lock:
-            rss_link = self._config.get('SETTINGS', 'rss_link_magent') if \
-                            (self._config.get('SETTINGS', 'download_method') == 'magnet') else \
-                            self._config.get('SETTINGS', 'rss_link_torr')
-                
-            feed = feedparser.parse(rss_link)
-            
-            watch_list = self._config.items(section="WATCHLIST")
-            for item, dir_path in watch_list:
-                if dir_path == '':
-                    dir_path = f"{self._config.get('SETTINGS', 'download_dir')}{item.title()}/"
-
-                # for trackers that name their torrents with dots intsead of spaces
-                if self._config.getboolean('SETTINGS', 'has_dots'):
-                    item = item.replace(" ", ".")
-
-                for entry in feed['entries']:
-                    # if item is found in entry titles (lowercased), satisfies additional rules,
-                    # and does not exist already in directory.
-                    if item in entry.title.lower() and \
-                    self._check_rules('SETTINGS', entry.title) and \
-                    not (os.path.isfile(dir_path + entry.title) or \
-                         os.path.isdir(dir_path + entry.title)):
-                        self._logger.info(f"Found new entry of {item.title()}")
-
-                        # magnet link OR .torrent download
-                        if self._config.getboolean('SETTINGS', 'qbit_integration') and \
-                        self._config.get('SETTINGS', 'download_method') == 'magnet':   
-                            self._qb_web(dir_path, entry.link)
-                            self._logger.info(f"Added {entry.title} to qBitorrent")
-                        elif not os.path.isfile(f"{self._curr_dir}/Downloads/{entry.title}"):
-                            self._dot_torr_download(entry.link, entry.title)
-                            self._logger.info(f"Downloaded {entry.title} torrent file to folder")
-
-                        self._downloaded_items.append(entry.title)
+    
 
         
     def _check_rules(self, tracker, title):
