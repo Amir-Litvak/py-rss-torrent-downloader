@@ -129,7 +129,6 @@ class RSSDownloader:
             self._config['SETTINGS'][setting] = att
             with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
                 self._config.write(configfile)
-            self._logger.info((f"Changed {setting} from {old_attribute} to {att}"))
 
     def get_settings(self) -> dict:
         """ Get all the current settings and their attributes as a dictionary """
