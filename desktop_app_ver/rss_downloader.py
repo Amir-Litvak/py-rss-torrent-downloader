@@ -104,9 +104,6 @@ class RSSDownloader:
                         self._config.get('SETTINGS', 'download_method') == 'magnet':   
                             self._qb_web(dir_path, entry.link)
                             self._logger.info(f"Added {entry.title} to qBitorrent")
-                        elif not os.path.isfile(f"{self._curr_dir}/Downloads/{entry.title}"):
-                            self._dot_torr_download(entry.link, entry.title)
-                            self._logger.info(f"Downloaded {entry.title} torrent file to folder")
 
                         downloaded_items.append(entry.title)
 
@@ -137,10 +134,10 @@ class RSSDownloader:
 
             return settings_dict
         
-    def get_watchlist(self) -> list:
+    def get_watchlist(self):
         """ Get the current watchlist """
         with self._lock:
-            watchlist = list(dict(self._config.items(section='WATCHLIST')).keys())
+            watchlist = dict(self._config.items(section='WATCHLIST'))
 
         return watchlist
 
