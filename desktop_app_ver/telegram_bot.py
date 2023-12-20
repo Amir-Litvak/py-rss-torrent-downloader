@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import filters, Application, CommandHandler, ContextTypes, MessageHandler
 import asyncio
 
+
 import rss_downloader
 
 logging.basicConfig(filename=f'{os.path.dirname(os.path.abspath(__file__))}/.logs/{datetime.date.today()}.log',
@@ -75,7 +76,7 @@ async def exit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def general_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("I am a bot. Bip boop.")
 
-def main():
+def bot():
     TOKEN = rss_downloader.RSSDownloader().get_telegram_token()
     application = Application.builder().token(TOKEN).build()
     
@@ -91,4 +92,4 @@ def main():
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-   main()
+   bot()

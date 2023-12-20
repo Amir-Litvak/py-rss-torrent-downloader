@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from rss_downloader import RSSDownloader
 import webbrowser
+from multiprocessing import Process
+import telegram_bot
 
 class RSSDownloaderGUI:
     def __init__(self):
@@ -21,6 +23,8 @@ class RSSDownloaderGUI:
 
         self.populate_settings_tab()
         self.manual_download()
+        self.proc = Process(target=telegram_bot.bot, daemon=True)
+        self.proc.start()
         self.root.mainloop()
 
     def populate_main_tab(self):
