@@ -1,11 +1,7 @@
 import logging
-import os
-import datetime
 import sys
 from telegram import Update
 from telegram.ext import filters, Application, CommandHandler, ContextTypes, MessageHandler
-import asyncio
-
 
 import rss_downloader
 

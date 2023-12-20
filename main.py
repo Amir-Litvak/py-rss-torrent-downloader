@@ -23,8 +23,9 @@ class RSSDownloaderGUI:
 
         self.populate_settings_tab()
         self.manual_download()
-        self.proc = Process(target=telegram_bot.bot, daemon=True)
-        self.proc.start()
+        if self.downloader.get_telegram_integration_status():
+            self.proc = Process(target=telegram_bot.bot, daemon=True)
+            self.proc.start()
         self.root.mainloop()
 
     def populate_main_tab(self):
@@ -166,8 +167,10 @@ class RSSDownloaderGUI:
 
         settings = self.downloader.get_settings()
         for i, (setting, value) in enumerate(settings.items(), start=1):
-            # Skip qBittorrent-related settings if 'qbit_integration' is 'no'
-            if not setting == 'qbit_integration' and 'qbit' in setting.lower() and settings['qbit_integration'] == 'no':
+            # Skip qBittorrent-related settings if 'qbit_integration' is 'no' &
+            # Skip Telegram-related settings if 'telegram_integration' is 'no'
+            if not setting == 'qbit_integration' and 'qbit' in setting.lower() and settings['qbit_integration'] == 'no' and \
+                not setting == 'telegram_integration' and 'telegram' in setting.lower() and settings['telegram_intergration'] == 'no':
                 continue
 
             ttk.Label(settings_frame, text=f"{setting.replace('_', ' ').title()}:").grid(row=i, column=0, pady=5)

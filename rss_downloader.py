@@ -4,6 +4,7 @@ import configparser #configparser
 import logging #logging
 import threading #thread
 import datetime #for the logs
+import requests #for .torrent downloads
 
 
 try:
@@ -71,6 +72,29 @@ class RSSDownloader:
         self._config.read(f'{self._curr_dir}/config.ini')
         self._lock = threading.Lock()
 
+    def __init_config_file(self):
+        """Create a new config file"""
+        config = configparser.ConfigParser()
+
+        config['SETTINGS'] = {'qbit_integration' : 'no',
+                            'qbit_path' : 'C:/Program Files/qBittorrent/qbittorrent.exe',
+                            'qbit_user' : 'username',
+                            'qbit_password' : 'passowrd',
+                            'qbit_port' : '8081',
+                            'telegram_integration' : 'no',
+                            'telegram_bot_token' : 'TOKEN',
+                            'auto_delete_obsolete' : 'yes',
+                            'rss_link_magent' : 'https://subsplease.org/rss/?r=1080',
+                            'rss_link_torr' : 'https://subsplease.org/rss/?t&r=1080',
+                            'download_dir' : f'{self._curr_dir}/Downloads',
+                            'download_method' : 'magnet',
+                            'has_dots' : 'no',
+                            'must_contain' : ''}
+        
+
+        with open(f'{self._curr_dir}/config.ini', 'w+') as configfile:
+            config.write(configfile)
+
     def download(self):
         #returns a list of (name, value) tuples for each entry in 'WATCHLIST'
         downloaded_items = list()
@@ -102,9 +126,11 @@ class RSSDownloader:
 
                         # magnet link OR .torrent download
                         if self._config.getboolean('SETTINGS', 'qbit_integration') and \
-                        self._config.get('SETTINGS', 'download_method') == 'magnet':   
+                            self._config.get('SETTINGS', 'download_method') == 'magnet':   
                             self._qb_web(dir_path, entry.link)
                             self._logger.info(f"Added {entry.title} to qBitorrent")
+                        elif not os.path.isfile(f"{self._curr_dir}/Downloads/{entry.title}"):
+                            self._dot_torr_download(entry.link, entry.title)
 
                         downloaded_items.append(entry.title)
 
@@ -134,6 +160,10 @@ class RSSDownloader:
             settings_dict = dict(self._config.items(section='SETTINGS'))
 
             return settings_dict
+        
+    def get_telegram_integration_status(self) -> bool:
+        with self._lock:
+            return self._config.getboolean('SETTINGS', 'telegram_integration')
         
     def get_watchlist(self):
         """ Get the current watchlist """
@@ -209,4 +239,11 @@ class RSSDownloader:
             sys.exit()
         
         qb.download_from_link(link, savepath=(dir_path))    
+
+    def _dot_torr_download(self, link, title):
+    
+        torr_download = requests.get(url=link, allow_redirects=True)
+
+        with open(f"{self._curr_dir}/Downloads/{title}.torrent", 'wb+') as torr_file:
+            torr_file.write(torr_download.content)
 
