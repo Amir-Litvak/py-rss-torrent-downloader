@@ -184,6 +184,11 @@ class RSSDownloaderGUI:
                 choice_combobox = ttk.Combobox(settings_frame, values=['Yes', 'No'], textvariable=choice_var, state='readonly')
                 choice_combobox.grid(row=i, column=1, pady=5)
                 self.settings_var[setting] = choice_var
+            elif value.lower() in ['magnet', '.torrent file']:
+                choice_var = tk.StringVar(value=value.capitalize())  # Initialize the choice with the current value
+                choice_combobox = ttk.Combobox(settings_frame, values=['Magnet', '.torrent File'], textvariable=choice_var, state='readonly')
+                choice_combobox.grid(row=i, column=1, pady=5)
+                self.settings_var[setting] = choice_var
             elif "qbit_path" in setting.lower():
                 # For "qbit_path", add Entry and Browse button to choose a file
                 entry = ttk.Entry(settings_frame, width=40)
