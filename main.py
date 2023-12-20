@@ -169,8 +169,10 @@ class RSSDownloaderGUI:
         for i, (setting, value) in enumerate(settings.items(), start=1):
             # Skip qBittorrent-related settings if 'qbit_integration' is 'no' &
             # Skip Telegram-related settings if 'telegram_integration' is 'no'
-            if not setting == 'qbit_integration' and 'qbit' in setting.lower() and settings['qbit_integration'] == 'no' and \
-                not setting == 'telegram_integration' and 'telegram' in setting.lower() and settings['telegram_intergration'] == 'no':
+            if not setting == 'qbit_integration' and 'qbit' in setting.lower() and settings['qbit_integration'] == 'no':
+                continue
+
+            if not setting == 'telegram_integration' and 'telegram' in setting.lower() and settings['telegram_integration'] == 'no':
                 continue
 
             ttk.Label(settings_frame, text=f"{setting.replace('_', ' ').title()}:").grid(row=i, column=0, pady=5)
