@@ -9,9 +9,6 @@ import asyncio
 
 import rss_downloader
 
-logging.basicConfig(filename=f'{os.path.dirname(os.path.abspath(__file__))}/.logs/{datetime.date.today()}.log',
-                        format='%(asctime)s %(levelname)s %(message)s', datefmt='%d/%m/%Y %H:%M:%S',
-                        level=logging.INFO)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
