@@ -5,6 +5,8 @@ import logging #logging
 import threading #thread
 import datetime #for the logs
 import requests #for .torrent downloads
+import time #sleep
+import psutil #check running processes
 
 
 try:
@@ -211,13 +213,20 @@ class RSSDownloader:
         qbit_password = self._config.get('SETTINGS', 'qbit_password')
         qbit_path = self._config.get('SETTINGS', 'qbit_path')
         os.startfile(qbit_path)
-        qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'qbit_port')}/")
-        if qb.login(qbit_user, qbit_password) != None:
-            print("Error: Wrong qbittorrent username/password")
-            self._logger.error("Entered wrong qbittorrent username/password")
-            sys.exit()
-        
-        qb.download_from_link(link, savepath=(dir_path))    
+        qbit_found = False
+
+        #search for the qbit process
+        while not qbit_found:
+            for process in psutil.process_iter():
+                if 'qbittorrent' in process.name():
+                    qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'qbit_port')}/")
+                    if qb.login(qbit_user, qbit_password) != None:
+                        print("Error: Wrong qbittorrent username/password")
+                        self._logger.error("Entered wrong qbittorrent username/password")
+                        sys.exit()
+                    qb.download_from_link(link, savepath=(dir_path)) 
+                    qbit_found = True
+                    break        
 
     def _dot_torr_download(self, link, title):
         torr_download = requests.get(url=link, allow_redirects=True)
