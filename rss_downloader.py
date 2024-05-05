@@ -5,7 +5,6 @@ import logging #logging
 import threading #thread
 import datetime #for the logs
 import requests #for .torrent downloads
-import time #sleep
 import psutil #check running processes
 
 
@@ -215,15 +214,15 @@ class RSSDownloader:
         os.startfile(qbit_path)
         qbit_found = False
 
-        #search for the qbit process
+        #search for the qbit process to sync with qbit proc start
         while not qbit_found:
             for process in psutil.process_iter():
                 if 'qbittorrent' in process.name():
-                    qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'qbit_port')}/")
+                    #timeout is a cautionary param for when the qbit proc is up but the qbit webAPI isn't
+                    qb = Client(f"http://127.0.0.1:{self._config.get('SETTINGS', 'qbit_port')}/", timeout=3.0)
                     if qb.login(qbit_user, qbit_password) != None:
-                        print("Error: Wrong qbittorrent username/password")
                         self._logger.error("Entered wrong qbittorrent username/password")
-                        sys.exit()
+                        return
                     qb.download_from_link(link, savepath=(dir_path)) 
                     qbit_found = True
                     break        
